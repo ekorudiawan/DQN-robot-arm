@@ -1,4 +1,4 @@
-# Deep Q Network Agent for Solving 2D Arm Robot Reacher
+# Deep Q Network Agent for Solving 2D Robot Arm Reacher
 
 **Overview**
 
