@@ -6,6 +6,7 @@ import torch as T
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
 # Class for saving agent experience
@@ -155,18 +156,23 @@ class DQNAgent(object):
         for target_param, local_param in zip(self.qnetwork_target.parameters(), self.qnetwork_local.parameters()):
             target_param.data.copy_(tau*local_param.data + (1.0-tau)*target_param.data)
 
+    def regular_update(self):
+        for target_param, local_param in zip(self.qnetwork_target.parameters(), self.qnetwork_local.parameters()):
+            target_param.data.copy_(local_param.data + target_param.data)
+
 if __name__ == "__main__":
     env = gym.make('gym_robot_arm:robot-arm-v0')
     n_states = env.observation_space.shape[0]
     n_actions = env.action_space.n
-    agent = DQNAgent(n_states=n_states, n_actions=n_actions)
-
+    agent = DQNAgent(alpha=0.0001, n_states=n_states, n_actions=n_actions)
+    writer = SummaryWriter('./log/dqn_trial_1')
     load_models = False
     n_episodes = 2000
     n_steps=300
 
     # Load weights
     if load_models:
+        agent.eps = agent.eps_min
         agent.load_models()
 
     total_reward_hist = []
@@ -185,17 +191,22 @@ if __name__ == "__main__":
             total_reward += reward
             if done:
                 break
-        agent.decrement_epsilon()
+        if not load_models:
+            agent.decrement_epsilon()
 
         # Save model 
         if episode > 1000 and episode % 200 == 0:
             agent.save_models()
+        
 
         total_reward_hist.append(total_reward)
         avg_reward = np.average(total_reward_hist[-100:])
         avg_reward_hist.append(avg_reward)
         print("Episode :", episode, "Epsilon : {:.2f}".format(agent.eps), "Total Reward : {:.2f}".format(total_reward), "Avg Reward : {:.2f}".format(avg_reward))
-    
+        # Tensorboard log
+        writer.add_scalar('Total Reward', total_reward, episode)
+        writer.add_scalar('Avg Reward', avg_reward, episode)
+        # writer.add_scalar('Epsilon', agent.eps, episode)
     fig, ax = plt.subplots()
     t = np.arange(n_episodes)
     ax.plot(t, total_reward_hist, label="Total Reward")
